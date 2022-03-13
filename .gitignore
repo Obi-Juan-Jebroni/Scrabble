@@ -1,0 +1,14 @@
+# Test cases
+/build/tests
+
+# Executable files
+*.exe
+*.obj
+
+# Specific files
+/board_backup.cpp
+
+# Folders
+/.vscode
+/build
+/CMakeFiles
