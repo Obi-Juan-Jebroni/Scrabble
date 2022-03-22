@@ -50,9 +50,9 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
      * Get probability of a tile with the given coordinates relative
      * to the current state of the board
      */
-    double calcTileProbability(Board& board, Tile& tile,
+    void calcTileProbability(Board& board, Tile& tile,
                               const std::size_t x, const std::size_t y) {
-        return 0;
+        
     }
 
     /**
@@ -64,7 +64,8 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
         for (std::size_t y = 0; y < BOARD_SIZE; ++y) {
             for (std::size_t x = 0; x < BOARD_SIZE; ++x) {
                 Tile curr_tile = board.tiles[x][y];
-                calcTileProbability(board, curr_tile, x, y);
+                if (curr_tile.letter != EMPTY)
+                    calcTileProbability(board, curr_tile, x, y);
             }
         }
     }
