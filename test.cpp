@@ -18,6 +18,18 @@ int main() {
      */
     std::cout << "------------------------FULL------------------------------" << std::endl;
     Board b_full = createBoardFromFile("tests/test.txt");
+    // printBoardValues(b_full);
+
+    // std::cout << getEmptyNeighbors(b_full, b_full.tiles[4][3]) << std::endl;
+    // std::cout << getEmptyNeighbors(b_full, b_full.tiles[4][8]) << std::endl;
+    // std::cout << getEmptyNeighbors(b_full, b_full.tiles[10][4]) << std::endl;
+
+    // getProbabilities(b_full);
+    // printBoardValues(b_full);
+    std::cout << getBestDirection(b_full, b_full.tiles[10][1]) << std::endl;
+    std::cout << getBestDirection(b_full, b_full.tiles[7][10]) << std::endl;
+    std::cout << getBestDirection(b_full, b_full.tiles[5][3]) << std::endl;
+    
 
     /**
      * Testing certain methods

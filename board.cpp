@@ -44,15 +44,80 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
  * accurate than brute-forcing in an attempt to find the best word.
  */
 #if (METHOD == PROBABILISTIC)
-    static std::tuple<std::size_t, std::size_t> highest_probability_coords[5];
+
+    /**
+     * Finds the best direction for a word to be placed on
+     * the target tile
+     * @param board
+     *          Scrabble board
+     * @param tile
+     *          Target tile on the scrabble board
+     */
+    int getBestDirection(const Board board, const Tile tile) {
+        
+        // If the tiles to the left and right of the target tile
+        // are both empty, the best direction is horizontal
+        if (board.getTile(tile.x - 1, tile.y) == EMPTY &&
+            board.getTile(tile.x + 1, tile.y) == EMPTY) return HORIZONTAL;
+
+        // If the tiles above and below the target tile
+        // are both empty, the best direction is vertical
+        if (board.getTile(tile.x, tile.y - 1) == EMPTY &&
+            board.getTile(tile.x, tile.y + 1) == EMPTY) return VERTICAL;
+
+        // If not, there is no "best direction"
+        return NO_DIRECTION;
+    }
 
     /**
      * Get probability of a tile with the given coordinates relative
      * to the current state of the board
+     * @param board
+     *          Scrabble board
+     * @param tile
+     *          Target tile on the scrabble board
      */
-    void calcTileProbability(Board& board, Tile& tile,
-                              const std::size_t x, const std::size_t y) {
+    void calcTileProbability(Board& board, Tile& tile) {
+        double probability = 100;
+        int neighbors = getEmptyNeighbors(board, tile);
+
+        // If it has no neighbors, it's not possible to put a word
+        // that orients off of that tile regardless of letters.
+        if (!neighbors) return;
+
+        // Get best direction if the number of neighbors
+        // a target value has is or exceeds 2
+        int best_direction = NO_DIRECTION;
+        if (neighbors >= 2) 
+            best_direction = getBestDirection(board, tile);
+
+        /**
+         * Probability algorithm
+         */
+        probability *= ((double) neighbors / (double) MAX_NEIGHBORS);
         
+        int max_empty_proximity = PROB_CALC_AREA - 1;
+        int empty_proximity = max_empty_proximity;
+
+        // Adjust probability based on amount of empty tiles around the target tile
+        for (int prox_x = (int) tile.x - PROB_CALC_SIZE; prox_x <= (int) tile.x + PROB_CALC_SIZE; ++prox_x) {
+            for (int prox_y = (int) tile.y - PROB_CALC_SIZE; prox_y <= (int) tile.y + PROB_CALC_SIZE; ++prox_y) {
+
+                // Don't count target tile
+                if (prox_x == tile.x && prox_y == tile.y) continue;
+
+                // If tile is not empty, subtract from potential empty tiles
+                if (board.getTile(prox_x, prox_y) != EMPTY) empty_proximity--;
+
+            }
+        }
+        probability *= ((double) empty_proximity / (double) max_empty_proximity);
+
+        // Adjust probability of finding a word based on target tile's letter
+        probability -= 5 * (tile.points / MAX_LETTER_POINTS);
+
+
+        tile.probability = probability;
     }
 
     /**
@@ -61,13 +126,24 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
      * to place a word at that cross-section
      */
     void getProbabilities(Board& board) {
+
+        // Iterates through entire board to calculate probability
+        // that a word can be created on that tile.
         for (std::size_t y = 0; y < BOARD_SIZE; ++y) {
             for (std::size_t x = 0; x < BOARD_SIZE; ++x) {
-                Tile curr_tile = board.tiles[x][y];
-                if (curr_tile.letter != EMPTY)
-                    calcTileProbability(board, curr_tile, x, y);
+                if (board.tiles[x][y].letter != EMPTY)
+                    calcTileProbability(board, board.tiles[x][y]);
             }
         }
+    }
+
+    /**
+     * Determines if the move at the tile is possible or not
+     * @return True if the move is possible,
+     *         False if the move violates the rules
+     */
+    bool isPossibleMove(std::string word, std::size_t anchorX, std::size_t anchorY, bool direction) {
+        return false;
     }
 
     // TODO: Implement method
@@ -109,8 +185,9 @@ Board createBoardFromFile(const std::string filename) {
                 Tile _new_tile;
                 _new_tile.letter = c;
                 _new_tile.points = _letter_values[c];
-                board.tiles[col][row] = _new_tile;
-                col++;
+                _new_tile.x = col;
+                _new_tile.y = row;
+                board.tiles[col++][row] = _new_tile;
             }
             row++;
         }
@@ -120,11 +197,37 @@ Board createBoardFromFile(const std::string filename) {
     return board;
 }
 
-// std::vector<std::string> getWordsOnBoard(const Board board) {
-//     std::vector<std::string> _words;
+/**
+ * Returns the neighbors of the given tile on the
+ * respective board.
+ * @param board
+ *              Scrabble board
+ * @param tile
+ *              Tile on scrabble board
+ * @return Number of neighbors the tile has relative
+ *         to the scrabble board
+ */
+int getEmptyNeighbors(const Board board, const Tile tile) {
+    int neighbors = 0;
     
-//     return _words;
-// }
+    // Check if left neighbor empty
+    char left = board.getTile(tile.x - 1, tile.y);
+    if (left == EMPTY) neighbors++;
+
+    // Check if right neighbor is empty
+    char right = board.getTile(tile.x + 1, tile.y);
+    if (right == EMPTY) neighbors++;
+
+    // Check if upmost neighbor is empty
+    char up = board.getTile(tile.x, tile.y - 1);
+    if (up == EMPTY) neighbors++;
+
+    // Check if downmost neighbor is empty
+    char down = board.getTile(tile.x, tile.y + 1);
+    if (down == EMPTY) neighbors++;
+
+    return neighbors;
+}
 
 /**
  * Method for debugging
@@ -133,7 +236,7 @@ Board createBoardFromFile(const std::string filename) {
 void printBoardValues(const Board board) {
     for (std::size_t y = 0; y < BOARD_SIZE; ++y) {
         for (std::size_t x = 0; x < BOARD_SIZE; ++x) {
-            std::cout << board.tiles[x][y].points << ' ';
+            std::cout << board.tiles[x][y].probability << '\t';
         }
         std::cout << '\n';
     }
