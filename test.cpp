@@ -53,12 +53,20 @@ int main() {
     // std::cout << isPossibleMove(b_full, scrabble_words, eye) << std::endl;
     // Move alpha("ALPHA", 0, 1, 7, HORIZONTAL);
     // std::cout << isPossibleMove(b_full, scrabble_words, alpha) << std::endl;
+    // Move alpha("ALPHA", 0, 1, 7, HORIZONTAL);
+    // getPointValueOfMove(alpha);
+    // std::cout << alpha.points << std::endl;
+    Move best_move = findBestWord(b_full, "SPKMETA");
+    best_move.print();
+
 
     /**
      * Testing certain methods
      */
     std::cout << "--------------------METHOD TESTING------------------------\n\n";
-    char queen[5] = {'Q', 'U', 'E', 'E', 'N'};
+    // char queen[5] = {'Q', 'U', 'E', 'E', 'N'};
+    // std::string like = "Like";
+    // std::cout << like.find('e', 4) << ", " << std::string::npos << std::endl;
 
     return EXIT_SUCCESS;
 }

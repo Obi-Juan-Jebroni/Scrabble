@@ -1,6 +1,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include <chrono>
 #include <deque>
 #include <fstream>
 #include <iostream>

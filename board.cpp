@@ -449,16 +449,70 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
          * those locations based on the letter on that tile and the tiles
          * that are currently in the player's hand.
          */
-        Move m;
+        Move best_move;
         std::unordered_set<std::string> scrabble_words = initializeWordSet();
         Tile* highest_probs = getHighestProbabilities(board);
 
         // Find the best move for each tile in the highest probabilities list
         for (std::size_t idx = 0; idx < PROB_ARRAY_SIZE; ++idx) {
-            std::string target_letters = letters + highest_probs[idx].letter;
+            Move m;
+            Tile target_tile = highest_probs[idx];
+            std::string target_letters = letters + target_tile.letter;
+
+            // Transforms string to vector of chars
+            std::vector<char> letter_vector(target_letters.length());
+            std::copy(target_letters.begin(), target_letters.end(), letter_vector.begin());
+
+            m.direction = getBestDirection(board, target_tile);
+
+            // Determine anchor points from direction
+            if (m.direction == VERTICAL) m.anchorX = target_tile.x;
+            else if (m.direction == HORIZONTAL) m.anchorY = target_tile.y;
+
+            // Iterate through possible words on spot to find best word
+            std::vector<std::string> possible_words = getPossibleWords(letter_vector);
+            for (auto it = possible_words.begin(); it != possible_words.end(); ++it) {
+                m.word = *it;
+                
+                // Determine anchor points from direction and placement of letter
+                // on the current word being examined for validity
+                std::size_t start = 0;
+                std::size_t found_idx = m.word.find(target_tile.letter, start);
+                while (found_idx != std::string::npos) {
+                    
+                    // Determine anchor points based on location of target tile and
+                    // the target tile's letter's location in the word
+                    if (m.direction == VERTICAL) m.anchorY = target_tile.y - found_idx;
+                    else if (m.direction == HORIZONTAL) m.anchorX = target_tile.x - found_idx;
+
+                    // Tests if the move is possible and then calculates the total points of the move
+                    auto timer_start = std::chrono::system_clock::now();
+                    if (isPossibleMove(board, scrabble_words, m)) {
+                    std::cout << *it << std::endl;
+                        getPointValueOfMove(m);
+                        if (m.points > best_move.points) {
+                            best_move.anchorX = m.anchorX;
+                            best_move.anchorY = m.anchorY;
+                            best_move.direction = m.direction;
+                            best_move.points = m.points;
+                            best_move.word = *it;
+                        }
+                    }
+                    m.points = 0;
+                    auto timer_end = std::chrono::system_clock::now();
+                    std::chrono::duration<double> elapsed = timer_end - timer_start;
+                    std::cout << elapsed.count() << std::endl;
+
+                    // Adjusts the start of searching for the target letter in the word
+                    // in case there are duplicate letters of the target letter
+                    start = found_idx + 1;
+                    found_idx = m.word.find(target_tile.letter, start);
+                }
+            }
+
         }
 
-        return m;
+        return best_move;
     }
 #endif
 
@@ -589,7 +643,7 @@ std::size_t getPointValueOfMove(Move& move) {
         _value *= pow(3, triple_flag);
     #endif
 
-    move.points = _value;
+    move.points += _value;
     return _value;
 }
 
