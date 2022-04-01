@@ -290,11 +290,97 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 
     /**
      * Determines if the move at the tile is possible or not
+     * @param board
+     *              Status of the Scrabble board
+     * @param scrabble_words
+     *              Set of Scrabble words
+     * @param move
+     *              Move to be evaluated for validity
      * @return True if the move is possible,
      *         False if the move violates the rules
      */
     bool isPossibleMove(const Board board, std::unordered_set<std::string> scrabble_words, Move& move) {
-        return false;
+        // If the move direction is vertical, every tile that is placed vertically
+        // must also make valid words with adjacent letters horizontally or must be isolated.
+        if (move.direction == VERTICAL) {
+            for (std::size_t i = 0; i < move.word.length(); ++i) {
+                // Use deque to construct a word using push front and back
+                std::deque<char> check_word;
+                check_word.push_back(move.word[i]);
+                
+                // Check if there are any letters to the left
+                std::size_t posX = move.anchorX;
+                char prev_letter = board.getTile(--posX, move.anchorY + i);
+                while (prev_letter != EMPTY && prev_letter != OUT_OF_BOUNDS) {
+                    check_word.push_front(prev_letter);
+                    prev_letter = board.getTile(--posX, move.anchorY + i);
+                }
+
+                // Check if there are any letters to the right
+                posX = move.anchorX;
+                char next_letter = board.getTile(++posX, move.anchorY + i);
+                while (next_letter != EMPTY && next_letter != OUT_OF_BOUNDS) {
+                    check_word.push_back(next_letter);
+                    next_letter = board.getTile(++posX, move.anchorY + i);
+                }
+
+                // Convert deque sequence to string
+                std::string word_from_deque;
+                for (int i = 0; i < check_word.size(); ++i)
+                    word_from_deque += check_word[i];
+
+                // Check if the letter is isolated or if it makes a word with adjacent tiles
+                if (word_from_deque.length() != 1 && !scrabble_words.count(word_from_deque)) {
+                    return false;
+                }
+
+                // If it is a valid move, the move's points need to be adjusted for a new word being created
+                move.points += getPointValueOfWord(word_from_deque);
+            }
+
+        } /* VERTICAL */
+
+        // If the move direction is horizontal, every tile that is placed horizontally
+        // must also make valid words with adjacent letters vertically or must be isolated.
+        else {
+            for (std::size_t i = 0; i < move.word.length(); ++i) {
+                // Use deque to construct a word using push front and back
+                std::deque<char> check_word;
+                check_word.push_back(move.word[i]);
+                
+                // Check if there are any letters above
+                std::size_t posY = move.anchorY;
+                char prev_letter = board.getTile(move.anchorX + i, --posY);
+                while (prev_letter != EMPTY && prev_letter != OUT_OF_BOUNDS) {
+                    check_word.push_front(prev_letter);
+                    prev_letter = board.getTile(move.anchorX + i, --posY);
+                }
+
+                // Check if there are any letters below
+                posY = move.anchorY;
+                char next_letter = board.getTile(move.anchorX + i, ++posY);
+                while (next_letter != EMPTY && next_letter != OUT_OF_BOUNDS) {
+                    check_word.push_back(next_letter);
+                    next_letter = board.getTile(move.anchorX + i, ++posY);
+                }
+
+                // Convert deque sequence to string
+                std::string word_from_deque;
+                for (int i = 0; i < check_word.size(); ++i)
+                    word_from_deque += check_word[i];
+
+                // Check if the letter is isolated or if it makes a word with adjacent tiles
+                if (word_from_deque.length() != 1 && !scrabble_words.count(word_from_deque)) {
+                    return false;
+                }
+
+                // If it is a valid move, the move's points need to be adjusted for a new word being created
+                move.points += getPointValueOfWord(word_from_deque);
+            }
+
+        } /* HORIZONTAL */
+
+        return true;
     }
 
     /**
@@ -304,6 +390,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
      *              State of the Scrabble board
      * @param letters
      *              Letters in the hands of the user
+     * @return The best move to play given the board status and letters in hand
      */
     Move findBestWord(Board& board, std::string letters) {
         /**
@@ -338,7 +425,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 
                 // Change properties of temporary word to find the points for that move
                 std::string temp_word = words_with_given_letters[idx];
-                temp_move.anchorX = (std::size_t) (BOARD_SIZE >> 1) - (std::size_t) (temp_word.size() >> 1);
+                temp_move.anchorX = (std::size_t) (BOARD_SIZE >> 1) - (std::size_t) (temp_word.length() >> 1);
                 temp_move.word = temp_word;
                 std::size_t temp_points = getPointValueOfMove(temp_move);
 
@@ -368,7 +455,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 
         // Find the best move for each tile in the highest probabilities list
         for (std::size_t idx = 0; idx < PROB_ARRAY_SIZE; ++idx) {
-
+            std::string target_letters = letters + highest_probs[idx].letter;
         }
 
         return m;
@@ -418,10 +505,23 @@ Board createBoardFromFile(const std::string filename) {
 }
 
 /**
- * Retrieves the scrabble point value of the given word.
+ * Retrieves the point value of a word string
  * @param word
  *          Scrabble word
- * @return Point value of the string parameter
+ * @return Point value of string parameter
+ */
+std::size_t getPointValueOfWord(std::string word) {
+    std::size_t _value = 0;
+    for (std::size_t i = 0; i < word.length(); ++i)
+        _value += _letter_values[word[i]];
+    return _value;
+}
+
+/**
+ * Retrieves the scrabble point value of the given move on the board.
+ * @param move
+ *          Scrabble move played by user
+ * @return Point value of the move on the board
  */
 std::size_t getPointValueOfMove(Move& move) {
     std::size_t _value = 0;
@@ -430,11 +530,11 @@ std::size_t getPointValueOfMove(Move& move) {
     // If bonus tiles are active, use the coordinates of each tile
     // to determine if one of them is over a double or triple word.
     #if (BONUS_TILES)
-        bool double_flag = false, triple_flag = false;
+        int double_flag = 0, triple_flag = 0;
         std::size_t single_coord = (move.anchorY * BOARD_SIZE) + move.anchorX;
     #endif
 
-    for (std::size_t i = 0; i < _word.size(); ++i) {
+    for (std::size_t i = 0; i < _word.length(); ++i) {
         std::size_t letter_val = _letter_values[_word[i]];
         #if (BONUS_TILES)
 
@@ -457,7 +557,7 @@ std::size_t getPointValueOfMove(Move& move) {
             // Checks if the current tile is over a triple word location
             for (std::size_t idx = 0; idx < TRIPLE_WORD_NUMBER_OF_LOCATIONS; ++idx) {
                 if (_triple_word_locations[idx] == single_coord) {
-                    triple_flag = true;
+                    triple_flag++;
                     break;
                 }
             } // Triple word
@@ -465,7 +565,7 @@ std::size_t getPointValueOfMove(Move& move) {
             // Checks if the current tile is over double word location
             for (std::size_t idx = 0; idx < DOUBLE_WORD_NUMBER_OF_LOCATIONS; ++idx) {
                 if (_double_word_locations[idx] == single_coord) {
-                    double_flag = true;
+                    double_flag++;
                     break;
                 }
             } // Double word
@@ -485,8 +585,8 @@ std::size_t getPointValueOfMove(Move& move) {
 
     // Checks if the double or triple word flags are up
     #if (BONUS_TILES)
-        if (double_flag) _value <<= 1;
-        if (triple_flag) _value *= 3;
+        _value *= pow(2, double_flag);
+        _value *= pow(3, triple_flag);
     #endif
 
     move.points = _value;

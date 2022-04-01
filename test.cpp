@@ -43,19 +43,22 @@ int main() {
     // std::cout << scrabble_words.size() << std::endl;
     // std::cout << scrabble_words.count(test_string) << std::endl;
     // std::cout << scrabble_words.count(gibberish) << std::endl;
-    
+
+    // Determine if moves are valid
+    // Move qi("QI", 12, 9, 3, VERTICAL);
+    // std::cout << isPossibleMove(b_full, scrabble_words, qi) << std::endl;
+    // Move ere("ERE", 0, 3, 7, VERTICAL);
+    // std::cout << isPossibleMove(b_full, scrabble_words, ere) << std::endl;
+    // Move eye("EYE", 0, 3, 7, VERTICAL);
+    // std::cout << isPossibleMove(b_full, scrabble_words, eye) << std::endl;
+    // Move alpha("ALPHA", 0, 1, 7, HORIZONTAL);
+    // std::cout << isPossibleMove(b_full, scrabble_words, alpha) << std::endl;
 
     /**
      * Testing certain methods
      */
     std::cout << "--------------------METHOD TESTING------------------------\n\n";
     char queen[5] = {'Q', 'U', 'E', 'E', 'N'};
-    Move m;
-    m.anchorX = 2;
-    m.anchorY = 8;
-    m.direction = VERTICAL;
-    m.word = "QUEEN";
-    std::cout << getPointValueOfMove(m) << std::endl;
 
     return EXIT_SUCCESS;
 }

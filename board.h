@@ -1,6 +1,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -8,6 +9,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "math.h"
 
 // Special scrabble characters
 #define EMPTY '-'
@@ -199,6 +202,22 @@ typedef struct Move {
     int direction;                 // Direction for the move (down or right)
 
     /**
+     * Move default constructor
+     * Defaults:
+     *      Word = "", Indicates that there is no move
+     *      Points = 0, Indicates a null move has no points
+     *      anchorX, anchorY = BOARD_SIZE, Indicates the beginning of the word
+     *      Direction = NO_DIRECTION, A null move has no direction
+     */
+    Move() : word(""), points(0), anchorX(BOARD_SIZE), anchorY(BOARD_SIZE), direction(NO_DIRECTION) {};
+
+    /**
+     * Move parameterized constructor
+     */
+    Move(std::string w, int p, std::size_t aX, std::size_t aY, int dir) : 
+        word(w), points(p), anchorX(aX), anchorY(aY), direction(dir) {};
+
+    /**
      * Prints out the move in the given format:
      * <word>; Location = (<x>, <y>); Direction = <direction>; Points for word = <points>
      */
@@ -265,6 +284,8 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters, bool four_o
 
 Move findBestWord(Board& board, std::string letters);
 
+std::size_t getPointValueOfWord(std::string word);
+
 std::size_t getPointValueOfMove(Move& move);
 
 #if (METHOD == PROBABILISTIC)
@@ -277,7 +298,7 @@ std::size_t getPointValueOfMove(Move& move);
 
     Tile* getHighestProbabilities(Board& board);
 
-    bool isPossibleMove(std::string word, std::size_t anchorX, std::size_t anchorY, bool direction);
+    bool isPossibleMove(const Board board, std::unordered_set<std::string> scrabble_words, Move& move);
 
     template <typename T, std::size_t N>
     void insert(T (&arr)[N], T item, int idx) {
