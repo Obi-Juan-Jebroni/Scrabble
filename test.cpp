@@ -25,10 +25,22 @@ int main() {
     // std::cout << getEmptyNeighbors(b_full, b_full.tiles[10][4]) << std::endl;
 
     // getProbabilities(b_full);
+    
+    // std::cout << getBestDirection(b_full, b_full.tiles[10][1]) << std::endl;
+    // std::cout << getBestDirection(b_full, b_full.tiles[7][10]) << std::endl;
+    // std::cout << getBestDirection(b_full, b_full.tiles[5][3]) << std::endl;
+
+    // Getting highest probability tiles
+    // getHighestProbabilities(b_full);
     // printBoardValues(b_full);
-    std::cout << getBestDirection(b_full, b_full.tiles[10][1]) << std::endl;
-    std::cout << getBestDirection(b_full, b_full.tiles[7][10]) << std::endl;
-    std::cout << getBestDirection(b_full, b_full.tiles[5][3]) << std::endl;
+
+    // Detemine if the letters make a word
+    initializeWordSet();
+    std::string test_string = "QUEEN";
+    std::string gibberish = "ADFWERD";
+    std::cout << scrabble_words.size() << std::endl;
+    std::cout << scrabble_words.count(test_string) << std::endl;
+    std::cout << scrabble_words.count(gibberish) << std::endl;
     
 
     /**

@@ -6,6 +6,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Special scrabble characters
@@ -16,9 +17,11 @@
 // Width and height of the board
 #define BOARD_SIZE 15
 
-// Area for which the probability 
+// Area for which the probability
 #define PROB_CALC_SIZE 2
-constexpr int PROB_CALC_AREA = (PROB_CALC_SIZE * 2 + 1) * (PROB_CALC_SIZE * 2 + 1);
+#define PROB_ARRAY_SIZE 5
+constexpr int PROB_CALC_AREA = ((PROB_CALC_SIZE << 1) + 1) * ((PROB_CALC_SIZE << 1) + 1);
+constexpr int PROB_CALC_AREA_DIRECTION = (PROB_CALC_SIZE + 1) << 2;
 
 // Maximum amount of neighbors a non-empty tile can have
 #define MAX_NEIGHBORS 3
@@ -54,7 +57,7 @@ constexpr int PROB_CALC_AREA = (PROB_CALC_SIZE * 2 + 1) * (PROB_CALC_SIZE * 2 + 
 #define METHOD PROBABILISTIC
 
 // File for the words in the scrabble dictionary
-#define DICTIONARY "scrabble_dictionary.txt"
+#define DICTIONARY "../scrabble_dictionary.txt"
 
 /**
  * Maps the letters to their scrabble point values
@@ -91,10 +94,17 @@ static std::unordered_map<char, int> _letter_values = {
 };
 
 /**
+ * Will be used to store all the words in the Scrabble dictionary
+ * for the purpose of constant look-up time
+ */
+static std::unordered_set<std::string> scrabble_words;
+void initializeWordSet(); // Method to initialize this set
+
+/**
  * If the bonus tiles are being taken into account,
  * the locations for them are defined.
  */
-#if(BONUS_TILES)
+#if (BONUS_TILES)
     
     /**
      * The x-coordinate can be determined by finding modular of
@@ -155,7 +165,7 @@ static std::unordered_map<char, int> _letter_values = {
 typedef struct Tile {
     char letter;        // Letter on tile
     int points;         // Point value of the letter on tile
-    std::size_t x, y;           // x and y coordinates of the tile
+    std::size_t x, y;   // x and y coordinates of the tile
     double probability; // Probability that a word can be made there
 
     /**
@@ -167,7 +177,37 @@ typedef struct Tile {
      *      x, y = BOARD_SIZE, Tile has no coordinates until they are initialized 
      */
     Tile() : letter(EMPTY), points(-1), probability(0.0), x(BOARD_SIZE), y(BOARD_SIZE) {};
+
+    /**
+     * Prints out the tile in the given format:
+     * (x,y), letter, probability
+     */
+    void print() {
+        std::cout << '(' << x << ',' << y << "), " << letter << ", " << probability << std::endl;
+    }
 } tile;
+
+/**
+ * Defines a potential move on the board.
+ * The move consists of a sequence of letters (word),
+ * a definitive amount of points depending on the placement 
+ * of the word on the board, and an anchor point of the
+ * move, which are the coordinates of the first letter.
+ */
+typedef struct Move {
+    std::string word;      // Sequence of letters for move
+    int points;            // Points for word
+    int anchorX, anchorY;  // Anchor point for the word
+
+    /**
+     * Prints out the move in the given format:
+     * "word"; Location = (x, y); Points for word = points
+     */
+    void print() {
+        std::cout << word << "; Location = (" << anchorX + 1 << ", " << 
+            anchorY + 1 << "); Points for word = " << points << std::endl; 
+    }
+} move;
 
 /**
  * A board is a double array consisting of tiles.
@@ -195,7 +235,7 @@ typedef struct Board {
     char getTile(std::size_t x, std::size_t y) const {
         if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE)
             return OUT_OF_BOUNDS;
-        return tiles[x][y].letter;
+        return tiles[x][y].letter; 
     }
 } board;
 
@@ -205,10 +245,9 @@ typedef struct Board {
  *          Scrabble word
  * @return Point value of the string parameter
  */
-template<std::size_t N>
-std::size_t getPointValueOfWord(char (&word)[N]) {
+static std::size_t getPointValueOfWord(std::string word) {
     std::size_t _value = 0;
-    for (std::size_t i = 0; i < N; ++i) _value += _letter_values[word[i]];
+    for (std::size_t i = 0; i < word.size(); ++i) _value += _letter_values[word[i]];
     return _value;
 }
 
@@ -228,12 +267,9 @@ bool boardIsEmpty(const Board board);
 
 std::vector<std::string> getPossibleWords(std::vector<char> letters, bool four_or_more);
 
-std::string findBestWord(Board& board);
+Move& findBestWord(Board& board);
 
 #if (METHOD == PROBABILISTIC)
-
-    // Array to store the highest probability locations
-    static std::size_t highest_probability_locations[5];
 
     int getBestDirection(const Board board, const Tile tile);
 
@@ -241,8 +277,24 @@ std::string findBestWord(Board& board);
 
     void getProbabilities(Board& board);
 
+    Tile* getHighestProbabilities(Board& board);
+
     bool isPossibleMove(std::string word, std::size_t anchorX, std::size_t anchorY, bool direction);
 
-#endif
+    template <typename T, std::size_t N>
+    void insert(T (&arr)[N], T item, int idx) {
+        for (int i = N - 1; i >= idx; --i) {
+            // First iteration
+            if (i == N - 1) { arr[i] = item; continue; }
 
-#endif
+            // Swap adjacent elements
+            T temp1 = arr[i];
+            T temp2 = arr[i + 1];
+            arr[i] = temp2;
+            arr[i + 1] = temp1;
+        }
+    }
+
+#endif /* METHOD */
+
+#endif /* BOARD_H */

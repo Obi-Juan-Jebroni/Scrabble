@@ -12,6 +12,21 @@ bool boardIsEmpty(const Board board) {
 }
 
 /**
+ * Initializes the set to contain the words in the
+ * Scrabble dictionary
+ */
+void initializeWordSet() {
+    std::ifstream _file(DICTIONARY);
+    if (_file.is_open()) {
+        std::string _word;
+        while (std::getline(_file, _word))
+            scrabble_words.insert(_word);
+    }
+    else 
+        std::cout << "Dictionary file location is wrong\n";
+}
+
+/**
  * Retrieves all possible words given the combination of letters
  * @param letters
  *          Find all possible words using these letters
@@ -36,6 +51,8 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 			if (_word.empty()) { _matches.push_back(_temp); }
 		}
 	}
+    else 
+        std::cout << "Dictionary file location is wrong\n";
 	return _matches;
 }
 
@@ -91,32 +108,122 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
         if (neighbors >= 2) 
             best_direction = getBestDirection(board, tile);
 
-        /**
-         * Probability algorithm
-         */
-        probability *= ((double) neighbors / (double) MAX_NEIGHBORS);
+        /********************************************************************************************************
+        *                                        Probability algorithm
+        * 
+        *********************************************************************************************************/
         
-        int max_empty_proximity = PROB_CALC_AREA - 1;
-        int empty_proximity = max_empty_proximity;
+        int max_empty_proximity = 0, empty_proximity = 0;
 
-        // Adjust probability based on amount of empty tiles around the target tile
-        for (int prox_x = (int) tile.x - PROB_CALC_SIZE; prox_x <= (int) tile.x + PROB_CALC_SIZE; ++prox_x) {
-            for (int prox_y = (int) tile.y - PROB_CALC_SIZE; prox_y <= (int) tile.y + PROB_CALC_SIZE; ++prox_y) {
+        // If the best chance to get a word is vertically, search for vertical side neighbors
+        if (best_direction == VERTICAL) {
+
+            // Adjust probability based on neighbor status
+            probability *= ((double) neighbors / (double) MAX_NEIGHBORS);
+
+            // Used for calculating probabilites
+            max_empty_proximity = PROB_CALC_AREA_DIRECTION;
+            empty_proximity = max_empty_proximity;
+            bool blocking_flag = false; // Used for when a non-empty tile is blocking the rest of the line
+
+            for (int prox_y = (int) tile.y - PROB_CALC_SIZE + 1; prox_y <= (int) tile.y + PROB_CALC_SIZE + 1; ++prox_y) {
 
                 // Don't count target tile
-                if (prox_x == tile.x && prox_y == tile.y) continue;
+                if (prox_y == tile.y) continue;
 
-                // If tile is not empty, subtract from potential empty tiles
-                if (board.getTile(prox_x, prox_y) != EMPTY) empty_proximity--;
+                // Used for when future tiles are blocked by a non-empty tile in the same line
+                if (blocking_flag) { 
+                    empty_proximity -= 3;
+                    continue;
+                }
 
+                // If the tile in the same line as the target tile is not empty
+                if (board.getTile(tile.x, prox_y) != EMPTY) {
+                    if (prox_y > tile.y) { blocking_flag = true; }
+                    empty_proximity -= 3;
+                    continue;
+                }
+
+                // Adjacent side tiles
+                char left_letter = board.getTile(tile.x - 1, prox_y);
+                char right_letter = board.getTile(tile.x + 1, prox_y);
+
+                // Check if side tiles are empty
+                if (left_letter != EMPTY && left_letter != OUT_OF_BOUNDS) empty_proximity--;
+                if (right_letter != EMPTY && right_letter != OUT_OF_BOUNDS) empty_proximity--;
             }
-        }
+        } // VERTICAL
+
+        // If the best chance to get a word is vertically, search for vertical side neighbors
+        else if (best_direction == HORIZONTAL) {
+
+            // Adjust probability based on neighbors
+            probability *= ((double) neighbors / (double) MAX_NEIGHBORS);
+
+            // Used for calculating probabilities
+            max_empty_proximity = PROB_CALC_AREA_DIRECTION;
+            empty_proximity = max_empty_proximity;
+            bool blocking_flag = false; // Used for when a non-empty tile is blocking the rest of the line
+
+            for (int prox_x = (int) tile.x - PROB_CALC_SIZE; prox_x <= (int) tile.x + PROB_CALC_SIZE; ++prox_x) {
+
+                // Don't count target tile
+                if (prox_x == tile.x) continue;
+
+                // Used for when future tiles are blocked by a non-empty tile in the same line
+                if (blocking_flag) { 
+                    empty_proximity -= 3;
+                    continue;
+                }
+
+                // If the tile in the same line as the target tile is not empty
+                if (board.getTile(prox_x, tile.y) != EMPTY) {
+                    if (prox_x > tile.x) { blocking_flag = true; }
+                    empty_proximity -= 3;
+                    continue;
+                }
+
+                // Adjacent vertical tiles
+                char top_letter = board.getTile(prox_x, tile.y - 1);
+                char bottom_letter = board.getTile(prox_x, tile.y + 1);
+
+                // Check if vertical tiles are empty
+                if (top_letter != EMPTY && top_letter != OUT_OF_BOUNDS) empty_proximity--;
+                if (bottom_letter != EMPTY && bottom_letter != OUT_OF_BOUNDS) empty_proximity--;
+            }
+        } // HORIZONTAL
+
+        else {
+
+            // Adjust probability based on neighbors
+            // If the target tile doesn't have a direction, the probability is decreased drastically
+            probability /= MAX_NEIGHBORS;
+
+            // Used for calculating probabilities
+            max_empty_proximity = PROB_CALC_AREA - 1;
+            empty_proximity = max_empty_proximity;
+
+            // Adjust probability based on amount of empty tiles around the target tile
+            for (int prox_x = (int) tile.x - PROB_CALC_SIZE; prox_x <= (int) tile.x + PROB_CALC_SIZE; ++prox_x) {
+                for (int prox_y = (int) tile.y - PROB_CALC_SIZE; prox_y <= (int) tile.y + PROB_CALC_SIZE; ++prox_y) {
+
+                    // Don't count target tile
+                    if (prox_x == tile.x && prox_y == tile.y) continue;
+
+                    // If tile is not empty, subtract from potential empty tiles
+                    if (board.getTile(prox_x, prox_y) != EMPTY) empty_proximity--;
+
+                }
+            }
+        } // NO_DIRECTION
+
+        // Adjusts probabilites based on empty tiles in proximity
         probability *= ((double) empty_proximity / (double) max_empty_proximity);
 
         // Adjust probability of finding a word based on target tile's letter
-        probability -= 5 * (tile.points / MAX_LETTER_POINTS);
+        probability -= 5 * ((double) tile.points / (double) MAX_LETTER_POINTS);
 
-
+        // Changing the tile's probability to the new one
         tile.probability = probability;
     }
 
@@ -138,6 +245,46 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
     }
 
     /**
+     * Fills in the highest probabilities array 
+     */
+    Tile* getHighestProbabilities(Board& board) {
+
+        // Initialize probabilities of tiles on the board
+        getProbabilities(board);
+
+        // Temporary array for storing highest probabilities
+        double temp_prob[PROB_ARRAY_SIZE] = { 0.0 };
+        
+        // Array to store the highest probability locations
+        static Tile highest_probability_tiles[PROB_ARRAY_SIZE];
+
+        for (std::size_t y = 0; y < BOARD_SIZE; ++y) {
+            for (std::size_t x = 0; x < BOARD_SIZE; ++x) {
+                Tile& temp_tile = board.tiles[x][y];
+
+                // Skip any empty tiles
+                if (temp_tile.letter == EMPTY) continue;
+
+                for (int idx = 0; idx < PROB_ARRAY_SIZE; ++idx) {
+
+                    // If the current tile's prob is higher than the current index's prob
+                    if (temp_tile.probability > temp_prob[idx]) {
+
+                        // Insert probability in temp prob array
+                        insert(temp_prob, temp_tile.probability, idx);
+
+                        // Insert tile into highest prob array
+                        insert(highest_probability_tiles, temp_tile, idx);
+
+                        break;
+                    }
+                }
+            }
+        }
+        return highest_probability_tiles;
+    }
+
+    /**
      * Determines if the move at the tile is possible or not
      * @return True if the move is possible,
      *         False if the move violates the rules
@@ -146,12 +293,20 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
         return false;
     }
 
-    // TODO: Implement method
-    std::string findBestWord(Board& board) {
+    /**
+     * Finds the best word given the current state of the board
+     * and a set of letters that the user has.
+     * @param board
+     *              State of the Scrabble board
+     * @param letters
+     *              
+     */
+    Move& findBestWord(Board& board, std::string letters) {
+        Move m;
         if (boardIsEmpty(board)) {
 
         }
-        return "";
+        return m;
     }
 #endif
 
@@ -160,7 +315,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
  */
 #if (METHOD == BRUTE_FORCE)
     // TODO
-    std::string findBestWord(Board board) {
+    Move& findBestWord(Board board, std::string letters) {
         return "";
     }
 #endif
