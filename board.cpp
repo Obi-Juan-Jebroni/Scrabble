@@ -304,24 +304,34 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
         // must also make valid words with adjacent letters horizontally or must be isolated.
         if (move.direction == VERTICAL) {
             for (std::size_t i = 0; i < move.word.length(); ++i) {
+                // Position of current tile relative to anchor point
+                int y = move.anchorY + (int) i;
+                
+                // If one of the tiles is out of bounds, the move isn't possible
+                if (board.getTile(move.anchorX, y) == OUT_OF_BOUNDS) return false;
+
+                // If the tile is part of a word that has already been placed, ignore it
+                if (move.pivotX == move.anchorX && move.pivotY == y)
+                    continue;
+
                 // Use deque to construct a word using push front and back
                 std::deque<char> check_word;
                 check_word.push_back(move.word[i]);
                 
                 // Check if there are any letters to the left
-                std::size_t posX = move.anchorX;
-                char prev_letter = board.getTile(--posX, move.anchorY + i);
+                int posX = move.anchorX;
+                char prev_letter = board.getTile(--posX, y);
                 while (prev_letter != EMPTY && prev_letter != OUT_OF_BOUNDS) {
                     check_word.push_front(prev_letter);
-                    prev_letter = board.getTile(--posX, move.anchorY + i);
+                    prev_letter = board.getTile(--posX, y);
                 }
 
                 // Check if there are any letters to the right
                 posX = move.anchorX;
-                char next_letter = board.getTile(++posX, move.anchorY + i);
+                char next_letter = board.getTile(++posX, y);
                 while (next_letter != EMPTY && next_letter != OUT_OF_BOUNDS) {
                     check_word.push_back(next_letter);
-                    next_letter = board.getTile(++posX, move.anchorY + i);
+                    next_letter = board.getTile(++posX, y);
                 }
 
                 // Convert deque sequence to string
@@ -335,7 +345,8 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
                 }
 
                 // If it is a valid move, the move's points need to be adjusted for a new word being created
-                move.points += getPointValueOfWord(word_from_deque);
+                if (word_from_deque.length() != 1)
+                    move.points += getPointValueOfWord(word_from_deque);
             }
 
         } /* VERTICAL */
@@ -344,24 +355,34 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
         // must also make valid words with adjacent letters vertically or must be isolated.
         else {
             for (std::size_t i = 0; i < move.word.length(); ++i) {
+                // Position of current tile relative to anchor point
+                int x = move.anchorX + (int) i;
+
+                // If one of the tiles is out of bounds, the move isn't possible
+                if (board.getTile(x, move.anchorY) == OUT_OF_BOUNDS) return false;
+
+                // If the tile is part of a word that is already played, ignore it
+                if (move.pivotX == x && move.pivotY == move.anchorY)
+                    continue;
+
                 // Use deque to construct a word using push front and back
                 std::deque<char> check_word;
                 check_word.push_back(move.word[i]);
                 
                 // Check if there are any letters above
-                std::size_t posY = move.anchorY;
-                char prev_letter = board.getTile(move.anchorX + i, --posY);
+                int posY = move.anchorY;
+                char prev_letter = board.getTile(x, --posY);
                 while (prev_letter != EMPTY && prev_letter != OUT_OF_BOUNDS) {
                     check_word.push_front(prev_letter);
-                    prev_letter = board.getTile(move.anchorX + i, --posY);
+                    prev_letter = board.getTile(x, --posY);
                 }
 
                 // Check if there are any letters below
                 posY = move.anchorY;
-                char next_letter = board.getTile(move.anchorX + i, ++posY);
+                char next_letter = board.getTile(x, ++posY);
                 while (next_letter != EMPTY && next_letter != OUT_OF_BOUNDS) {
                     check_word.push_back(next_letter);
-                    next_letter = board.getTile(move.anchorX + i, ++posY);
+                    next_letter = board.getTile(x, ++posY);
                 }
 
                 // Convert deque sequence to string
@@ -425,7 +446,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 
                 // Change properties of temporary word to find the points for that move
                 std::string temp_word = words_with_given_letters[idx];
-                temp_move.anchorX = (std::size_t) (BOARD_SIZE >> 1) - (std::size_t) (temp_word.length() >> 1);
+                temp_move.anchorX = (BOARD_SIZE >> 1) - (int) (temp_word.length() >> 1);
                 temp_move.word = temp_word;
                 std::size_t temp_points = getPointValueOfMove(temp_move);
 
@@ -457,6 +478,8 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
         for (std::size_t idx = 0; idx < PROB_ARRAY_SIZE; ++idx) {
             Move m;
             Tile target_tile = highest_probs[idx];
+            m.pivotX = target_tile.x;
+            m.pivotY = target_tile.y;
             std::string target_letters = letters + target_tile.letter;
 
             // Transforms string to vector of chars
@@ -466,8 +489,8 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
             m.direction = getBestDirection(board, target_tile);
 
             // Determine anchor points from direction
-            if (m.direction == VERTICAL) m.anchorX = target_tile.x;
-            else if (m.direction == HORIZONTAL) m.anchorY = target_tile.y;
+            if (m.direction == VERTICAL) m.anchorX = (int) target_tile.x;
+            else if (m.direction == HORIZONTAL) m.anchorY = (int) target_tile.y;
 
             // Iterate through possible words on spot to find best word
             std::vector<std::string> possible_words = getPossibleWords(letter_vector);
@@ -482,15 +505,16 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
                     
                     // Determine anchor points based on location of target tile and
                     // the target tile's letter's location in the word
-                    if (m.direction == VERTICAL) m.anchorY = target_tile.y - found_idx;
-                    else if (m.direction == HORIZONTAL) m.anchorX = target_tile.x - found_idx;
+                    if (m.direction == VERTICAL) m.anchorY = (int) target_tile.y - (int) found_idx;
+                    else if (m.direction == HORIZONTAL) m.anchorX = (int) target_tile.x - (int) found_idx;
 
                     // Tests if the move is possible and then calculates the total points of the move
-                    auto timer_start = std::chrono::system_clock::now();
-                    if (isPossibleMove(board, scrabble_words, m)) {
-                    std::cout << *it << std::endl;
-                        getPointValueOfMove(m);
-                        if (m.points > best_move.points) {
+                    // auto timer_start = std::chrono::system_clock::now();
+                    getPointValueOfMove(m);
+                    if (m.points > best_move.points) {  
+                        std::cout << m.points << ", " << best_move.points << std::endl;
+                        if (isPossibleMove(board, scrabble_words, m)) {
+                            m.print();
                             best_move.anchorX = m.anchorX;
                             best_move.anchorY = m.anchorY;
                             best_move.direction = m.direction;
@@ -499,9 +523,9 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
                         }
                     }
                     m.points = 0;
-                    auto timer_end = std::chrono::system_clock::now();
-                    std::chrono::duration<double> elapsed = timer_end - timer_start;
-                    std::cout << elapsed.count() << std::endl;
+                    // auto timer_end = std::chrono::system_clock::now();
+                    // std::chrono::duration<double> elapsed = timer_end - timer_start;
+                    // std::cout << elapsed.count() << std::endl;
 
                     // Adjusts the start of searching for the target letter in the word
                     // in case there are duplicate letters of the target letter
@@ -586,47 +610,48 @@ std::size_t getPointValueOfMove(Move& move) {
     #if (BONUS_TILES)
         int double_flag = 0, triple_flag = 0;
         std::size_t single_coord = (move.anchorY * BOARD_SIZE) + move.anchorX;
+        std::size_t pivot_coord = (move.pivotY * BOARD_SIZE) + move.pivotX;
     #endif
 
     for (std::size_t i = 0; i < _word.length(); ++i) {
         std::size_t letter_val = _letter_values[_word[i]];
+
         #if (BONUS_TILES)
 
-            // Checks if the current tile is over a triple letter location
-            for (std::size_t idx = 0; idx < TRIPLE_LETTER_NUMBER_OF_LOCATIONS; ++idx) {
-                if (_triple_letter_locations[idx] == single_coord) {
-                    _value += letter_val * 2;
-                    break;
-                }
-            } // Triple letter
+            // If the tile was placed before the move, no special tiles will be applied
+            if (single_coord == pivot_coord) {
+                _value += letter_val;
+                if (move.direction == VERTICAL) single_coord += 15;
+                if (move.direction == HORIZONTAL) ++single_coord;
+                continue;
+            }
+            // Searches map to see if the current tile location is on a bonus tile
+            try {
+                int special_move = bonus_tile_locations.at(single_coord);
+                
+                switch(special_move) {
+                    case (TRIPLE_LETTER):
+                        _value += letter_val << 1;
+                        break;
+                    case (DOUBLE_LETTER):
+                        _value += letter_val;
+                        break;
+                    case (TRIPLE_WORD):
+                        triple_flag++;
+                        break;
+                    case (DOUBLE_WORD):
+                        double_flag++;
+                        break;
 
-            // Checks if the current tile is over a double letter location
-            for (std::size_t idx = 0; idx < DOUBLE_LETTER_NUMBER_OF_LOCATIONS; ++idx) {
-                if (_double_letter_locations[idx] == single_coord) {
-                    _value += letter_val;
-                    break;
                 }
-            } // Double letter
+            }
+            // Simply catches the exception so the program can run
+            catch (std::out_of_range ex) {}
 
-            // Checks if the current tile is over a triple word location
-            for (std::size_t idx = 0; idx < TRIPLE_WORD_NUMBER_OF_LOCATIONS; ++idx) {
-                if (_triple_word_locations[idx] == single_coord) {
-                    triple_flag++;
-                    break;
-                }
-            } // Triple word
-
-            // Checks if the current tile is over double word location
-            for (std::size_t idx = 0; idx < DOUBLE_WORD_NUMBER_OF_LOCATIONS; ++idx) {
-                if (_double_word_locations[idx] == single_coord) {
-                    double_flag++;
-                    break;
-                }
-            } // Double word
             _value += letter_val;
 
         #else
-            _value += _letter_values[_word[i]];
+            _value += letter_val;
         #endif
         
         // Adjust single coordinate for next iteration based
@@ -639,8 +664,8 @@ std::size_t getPointValueOfMove(Move& move) {
 
     // Checks if the double or triple word flags are up
     #if (BONUS_TILES)
-        _value *= pow(2, double_flag);
-        _value *= pow(3, triple_flag);
+        _value *= (std::size_t) pow(2, double_flag);
+        _value *= (std::size_t) pow(3, triple_flag);
     #endif
 
     move.points += _value;

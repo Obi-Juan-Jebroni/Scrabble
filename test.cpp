@@ -12,14 +12,17 @@ int main() {
      */
     std::cout << "------------------------EMPTY-----------------------------\n\n";
     Board b_empty = createBoardFromFile("tests/empty.txt");
-    Move best = findBestWord(b_empty, "QUENEST");
+    Move best = findBestWord(b_empty, "DGENEAE");
     best.print();
 
     /**
      * Testing methods with a large amount of words on the board
      */
     std::cout << "------------------------FULL------------------------------\n\n";
-    Board b_full = createBoardFromFile("tests/test.txt");
+    //Board b_full = createBoardFromFile("tests/test.txt");
+    Board b_mom = createBoardFromFile("tests/mom.txt");
+    Move best_move = findBestWord(b_mom, "ERDACIA");
+    best_move.print();
     // printBoardValues(b_full);
 
     // std::cout << getEmptyNeighbors(b_full, b_full.tiles[4][3]) << std::endl;
@@ -56,8 +59,8 @@ int main() {
     // Move alpha("ALPHA", 0, 1, 7, HORIZONTAL);
     // getPointValueOfMove(alpha);
     // std::cout << alpha.points << std::endl;
-    Move best_move = findBestWord(b_full, "SPKMETA");
-    best_move.print();
+    // Move best_move = findBestWord(b_full, "SPKMETA");
+    // best_move.print();
 
 
     /**

@@ -82,7 +82,7 @@ static std::unordered_map<char, int> _letter_values = {
     {'K', 5},      // K = 5 points
     {'L', 1},      // L = 1 point
     {'M', 3},      // M = 3 points
-    {'N', 1},      // N = 1 point
+    {'N', 2},      // N = 1 point
     {'O', 1},      // O = 1 point
     {'P', 3},      // P = 3 points
     {'Q', 10},     // Q = 10 points
@@ -101,10 +101,10 @@ static std::unordered_map<char, int> _letter_values = {
  * If the bonus tiles are being taken into account,
  * the locations for them are defined.
  */
-#define TRIPLE_LETTER_NUMBER_OF_LOCATIONS 12
-#define DOUBLE_LETTER_NUMBER_OF_LOCATIONS 24
-#define TRIPLE_WORD_NUMBER_OF_LOCATIONS 8
-#define DOUBLE_WORD_NUMBER_OF_LOCATIONS 16
+#define TRIPLE_LETTER 1
+#define DOUBLE_LETTER 2
+#define TRIPLE_WORD 3
+#define DOUBLE_WORD 4
 
 #if (BONUS_TILES)
     
@@ -116,43 +116,82 @@ static std::unordered_map<char, int> _letter_values = {
      * value of the quotient with respect to 15 ((int) location / 15)
      */
 
-    /**
-     * Triple letter locations.
-     */
-    static std::size_t _triple_letter_locations[TRIPLE_LETTER_NUMBER_OF_LOCATIONS] = {
-        20, 24, 76, 80,
-        84, 88, 136, 140,
-        144, 148, 200, 204
-    };
+    static std::unordered_map<std::size_t, int> bonus_tile_locations = {
+        /**
+         * Triple letter locations on the board
+         */
+        {20, TRIPLE_LETTER},
+        {24, TRIPLE_LETTER},
+        {76, TRIPLE_LETTER},
+        {80, TRIPLE_LETTER},
+        {84, TRIPLE_LETTER},
+        {88, TRIPLE_LETTER},
+        {136, TRIPLE_LETTER},
+        {140, TRIPLE_LETTER},
+        {144, TRIPLE_LETTER},
+        {148, TRIPLE_LETTER},
+        {200, TRIPLE_LETTER},
+        {204, TRIPLE_LETTER},
 
-    /**
-     * Double letter locations
-     */
-    static std::size_t _double_letter_locations[DOUBLE_LETTER_NUMBER_OF_LOCATIONS] = {
-        3, 11, 36, 38, 
-        45, 52, 59, 92,
-        96, 98, 102, 108,
-        116, 122, 126, 128,
-        132, 165, 172, 179,
-        186, 188, 213, 221
-    };
+        /**
+         * Double letter locatons on the board
+         */
+        {3, DOUBLE_LETTER},
+        {11, DOUBLE_LETTER},
+        {36, DOUBLE_LETTER},
+        {38, DOUBLE_LETTER},
+        {45, DOUBLE_LETTER},
+        {52, DOUBLE_LETTER},
+        {59, DOUBLE_LETTER},
+        {92, DOUBLE_LETTER},
+        {96, DOUBLE_LETTER},
+        {98, DOUBLE_LETTER},
+        {102, DOUBLE_LETTER},
+        {108, DOUBLE_LETTER},
+        {116, DOUBLE_LETTER},
+        {122, DOUBLE_LETTER},
+        {126, DOUBLE_LETTER},
+        {128, DOUBLE_LETTER},
+        {132, DOUBLE_LETTER},
+        {165, DOUBLE_LETTER},
+        {172, DOUBLE_LETTER},
+        {179, DOUBLE_LETTER},
+        {186, DOUBLE_LETTER},
+        {188, DOUBLE_LETTER},
+        {213, DOUBLE_LETTER},
+        {221, DOUBLE_LETTER},
 
-    /**
-     * Triple word locations
-     */
-    static std::size_t _triple_word_locations[TRIPLE_WORD_NUMBER_OF_LOCATIONS] = {
-        0, 7, 14, 105,
-        119, 210, 217, 224
-    };
+        /**
+         * Triple word locations
+         */
+        {0, TRIPLE_WORD},
+        {7, TRIPLE_WORD},
+        {14, TRIPLE_WORD},
+        {105, TRIPLE_WORD},
+        {119, TRIPLE_WORD},
+        {210, TRIPLE_WORD},
+        {217, TRIPLE_WORD},
+        {224, TRIPLE_WORD},
 
-    /**
-     * Double word locations
-     */
-    static std::size_t _double_word_locations[DOUBLE_WORD_NUMBER_OF_LOCATIONS] = {
-        16, 28, 32, 42,
-        48, 56, 64, 70,
-        154, 160, 168, 176,
-        182, 192, 196, 208
+        /**
+         * Double word locations
+         */
+        {16, DOUBLE_WORD},
+        {28, DOUBLE_WORD},
+        {32, DOUBLE_WORD},
+        {42, DOUBLE_WORD},
+        {48, DOUBLE_WORD},
+        {56, DOUBLE_WORD},
+        {64, DOUBLE_WORD},
+        {70, DOUBLE_WORD},
+        {154, DOUBLE_WORD},
+        {160, DOUBLE_WORD},
+        {168, DOUBLE_WORD},
+        {176, DOUBLE_WORD},
+        {182, DOUBLE_WORD},
+        {192, DOUBLE_WORD},
+        {196, DOUBLE_WORD},
+        {208, DOUBLE_WORD},
     };
 #endif
 
@@ -166,7 +205,7 @@ static std::unordered_map<char, int> _letter_values = {
  */
 typedef struct Tile {
     char letter;        // Letter on tile
-    int points;         // Point value of the letter on tile
+    std::size_t points; // Point value of the letter on tile
     std::size_t x, y;   // x and y coordinates of the tile
     double probability; // Probability that a word can be made there
 
@@ -174,11 +213,11 @@ typedef struct Tile {
      * Tile default constructor
      * Defaults:
      *      Letter = EMPTY, Indicates that the tile is empty
-     *      Points = -1, Indicates tile has no point value
+     *      Points = 0, Indicates tile has no point value
      *      Probability = 0.0, Word can't be placed on an empty tile
      *      x, y = BOARD_SIZE, Tile has no coordinates until they are initialized 
      */
-    Tile() : letter(EMPTY), points(-1), probability(0.0), x(BOARD_SIZE), y(BOARD_SIZE) {};
+    Tile() : letter(EMPTY), points(0), probability(0.0), x(BOARD_SIZE), y(BOARD_SIZE) {};
 
     /**
      * Prints out the tile in the given format:
@@ -198,9 +237,10 @@ typedef struct Tile {
  */
 typedef struct Move {
     std::string word;              // Sequence of letters for move
-    int points;                    // Points for word
-    std::size_t anchorX, anchorY;  // Anchor point for the word
+    std::size_t points;                    // Points for word
+    int anchorX, anchorY;          // Anchor point for the word
     int direction;                 // Direction for the move (down or right)
+    std::size_t pivotX, pivotY;    // Tile for the move to pivot off of
 
     /**
      * Move default constructor
@@ -215,7 +255,7 @@ typedef struct Move {
     /**
      * Move parameterized constructor
      */
-    Move(std::string w, int p, std::size_t aX, std::size_t aY, int dir) : 
+    Move(std::string w, int p, int aX, int aY, int dir) : 
         word(w), points(p), anchorX(aX), anchorY(aY), direction(dir) {};
 
     /**
