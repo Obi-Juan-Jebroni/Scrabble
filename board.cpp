@@ -15,15 +15,18 @@ bool boardIsEmpty(const Board board) {
  * Initializes the set to contain the words in the
  * Scrabble dictionary
  */
-void initializeWordSet() {
+std::unordered_set<std::string> initializeWordSet() {
+    std::unordered_set<std::string> new_set;
     std::ifstream _file(DICTIONARY);
     if (_file.is_open()) {
         std::string _word;
         while (std::getline(_file, _word))
-            scrabble_words.insert(_word);
+            new_set.insert(_word);
     }
     else 
         std::cout << "Dictionary file location is wrong\n";
+    
+    return new_set;
 }
 
 /**
@@ -44,7 +47,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 			_temp = _word;
 			while (!_word.empty()) {
 				char c = _word[0];
-				auto it = find(_compare.begin(), _compare.end(), c);
+				std::vector<char>::iterator it = find(_compare.begin(), _compare.end(), c);
 				if (it != _compare.end()) { _compare.erase(it); _word.erase(find(_word.begin(), _word.end(), c)); }
 				else break;
 			}
@@ -53,6 +56,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
 	}
     else 
         std::cout << "Dictionary file location is wrong\n";
+
 	return _matches;
 }
 
@@ -289,7 +293,7 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
      * @return True if the move is possible,
      *         False if the move violates the rules
      */
-    bool isPossibleMove(std::string word, std::size_t anchorX, std::size_t anchorY, bool direction) {
+    bool isPossibleMove(const Board board, std::unordered_set<std::string> scrabble_words, Move& move) {
         return false;
     }
 
@@ -299,13 +303,74 @@ std::vector<std::string> getPossibleWords(std::vector<char> letters) {
      * @param board
      *              State of the Scrabble board
      * @param letters
-     *              
+     *              Letters in the hands of the user
      */
-    Move& findBestWord(Board& board, std::string letters) {
-        Move m;
+    Move findBestWord(Board& board, std::string letters) {
+        /**
+         * If the board is empty, the first word must go through
+         * the middle square on the Scrabble board (7, 7).
+         * The first word can only be made of the tiles that
+         * the user is currently holding in their hand.
+         * The first word also automatically receives double points.
+         */
         if (boardIsEmpty(board)) {
+            
+            // Initialize constants for the first move
+            Move first_move;
+            first_move.direction = HORIZONTAL;
+            first_move.anchorY = (BOARD_SIZE >> 1);
+
+            // Transforms string to vector of chars
+            std::vector<char> letter_vector(letters.length());
+            std::copy(letters.begin(), letters.end(), letter_vector.begin());
+
+            // Retrieve all possible words
+            std::vector<std::string> words_with_given_letters = getPossibleWords(letter_vector);
+
+            // Temporary move is used for comparison with current best move
+            Move temp_move;
+            temp_move.direction = HORIZONTAL;
+            temp_move.anchorY = (BOARD_SIZE >> 1);
+
+            // Iterate through all possible words and find the one that gives the most points
+            std::size_t points = 0;
+            for (std::size_t idx = 0; idx < words_with_given_letters.size(); ++idx) {
+
+                // Change properties of temporary word to find the points for that move
+                std::string temp_word = words_with_given_letters[idx];
+                temp_move.anchorX = (std::size_t) (BOARD_SIZE >> 1) - (std::size_t) (temp_word.size() >> 1);
+                temp_move.word = temp_word;
+                std::size_t temp_points = getPointValueOfMove(temp_move);
+
+                // If the temp move is better than prev move, make it the new best move
+                if (temp_points > points) {
+                    points = temp_points;
+                    first_move.anchorX = temp_move.anchorX;
+                    first_move.word = temp_word;
+                }
+            }
+
+            // First move gets double points
+            first_move.points = points << 1;
+            return first_move;
 
         }
+        
+        /**
+         * If the board is not empty, the algorithm will calculate the top locations
+         * for finding a word (highest probabilities) and find the best words for 
+         * those locations based on the letter on that tile and the tiles
+         * that are currently in the player's hand.
+         */
+        Move m;
+        std::unordered_set<std::string> scrabble_words = initializeWordSet();
+        Tile* highest_probs = getHighestProbabilities(board);
+
+        // Find the best move for each tile in the highest probabilities list
+        for (std::size_t idx = 0; idx < PROB_ARRAY_SIZE; ++idx) {
+
+        }
+
         return m;
     }
 #endif
@@ -344,12 +409,88 @@ Board createBoardFromFile(const std::string filename) {
                 _new_tile.y = row;
                 board.tiles[col++][row] = _new_tile;
             }
-            row++;
+            ++row;
         }
     }
     else 
         std::cout << "File name not found\n";
     return board;
+}
+
+/**
+ * Retrieves the scrabble point value of the given word.
+ * @param word
+ *          Scrabble word
+ * @return Point value of the string parameter
+ */
+std::size_t getPointValueOfMove(Move& move) {
+    std::size_t _value = 0;
+    std::string _word = move.word;
+
+    // If bonus tiles are active, use the coordinates of each tile
+    // to determine if one of them is over a double or triple word.
+    #if (BONUS_TILES)
+        bool double_flag = false, triple_flag = false;
+        std::size_t single_coord = (move.anchorY * BOARD_SIZE) + move.anchorX;
+    #endif
+
+    for (std::size_t i = 0; i < _word.size(); ++i) {
+        std::size_t letter_val = _letter_values[_word[i]];
+        #if (BONUS_TILES)
+
+            // Checks if the current tile is over a triple letter location
+            for (std::size_t idx = 0; idx < TRIPLE_LETTER_NUMBER_OF_LOCATIONS; ++idx) {
+                if (_triple_letter_locations[idx] == single_coord) {
+                    _value += letter_val * 2;
+                    break;
+                }
+            } // Triple letter
+
+            // Checks if the current tile is over a double letter location
+            for (std::size_t idx = 0; idx < DOUBLE_LETTER_NUMBER_OF_LOCATIONS; ++idx) {
+                if (_double_letter_locations[idx] == single_coord) {
+                    _value += letter_val;
+                    break;
+                }
+            } // Double letter
+
+            // Checks if the current tile is over a triple word location
+            for (std::size_t idx = 0; idx < TRIPLE_WORD_NUMBER_OF_LOCATIONS; ++idx) {
+                if (_triple_word_locations[idx] == single_coord) {
+                    triple_flag = true;
+                    break;
+                }
+            } // Triple word
+
+            // Checks if the current tile is over double word location
+            for (std::size_t idx = 0; idx < DOUBLE_WORD_NUMBER_OF_LOCATIONS; ++idx) {
+                if (_double_word_locations[idx] == single_coord) {
+                    double_flag = true;
+                    break;
+                }
+            } // Double word
+            _value += letter_val;
+
+        #else
+            _value += _letter_values[_word[i]];
+        #endif
+        
+        // Adjust single coordinate for next iteration based
+        // on the direction of the move
+        #if (BONUS_TILES)
+            if (move.direction == VERTICAL) single_coord += 15;
+            if (move.direction == HORIZONTAL) ++single_coord;
+        #endif
+    }
+
+    // Checks if the double or triple word flags are up
+    #if (BONUS_TILES)
+        if (double_flag) _value <<= 1;
+        if (triple_flag) _value *= 3;
+    #endif
+
+    move.points = _value;
+    return _value;
 }
 
 /**

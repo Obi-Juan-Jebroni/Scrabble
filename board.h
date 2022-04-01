@@ -44,7 +44,7 @@ constexpr int PROB_CALC_AREA_DIRECTION = (PROB_CALC_SIZE + 1) << 2;
  * 0 = No bonus tiles taken into account
  * 1 = Use bonus tiles to calculate best word
  */
-#define BONUS_TILES 0
+#define BONUS_TILES 1
 
 /** 
  * Using a probablistic approach to finding a word on the board
@@ -94,16 +94,14 @@ static std::unordered_map<char, int> _letter_values = {
 };
 
 /**
- * Will be used to store all the words in the Scrabble dictionary
- * for the purpose of constant look-up time
- */
-static std::unordered_set<std::string> scrabble_words;
-void initializeWordSet(); // Method to initialize this set
-
-/**
  * If the bonus tiles are being taken into account,
  * the locations for them are defined.
  */
+#define TRIPLE_LETTER_NUMBER_OF_LOCATIONS 12
+#define DOUBLE_LETTER_NUMBER_OF_LOCATIONS 24
+#define TRIPLE_WORD_NUMBER_OF_LOCATIONS 8
+#define DOUBLE_WORD_NUMBER_OF_LOCATIONS 16
+
 #if (BONUS_TILES)
     
     /**
@@ -117,41 +115,41 @@ void initializeWordSet(); // Method to initialize this set
     /**
      * Triple letter locations.
      */
-    std::size_t _triple_letter_locations[12] = {
-                                                20, 24, 76, 80,
-                                                84, 88, 136, 140,
-                                                144, 148, 200, 204
-                                               };
+    static std::size_t _triple_letter_locations[TRIPLE_LETTER_NUMBER_OF_LOCATIONS] = {
+        20, 24, 76, 80,
+        84, 88, 136, 140,
+        144, 148, 200, 204
+    };
 
     /**
      * Double letter locations
      */
-    std::size_t _double_letter_locations[24] = {
-                                                3, 11, 36, 38, 
-                                                45, 52, 59, 92,
-                                                96, 98, 102, 108,
-                                                116, 122, 126, 128,
-                                                132, 165, 172, 179,
-                                                186, 188, 213, 221
-                                               };
+    static std::size_t _double_letter_locations[DOUBLE_LETTER_NUMBER_OF_LOCATIONS] = {
+        3, 11, 36, 38, 
+        45, 52, 59, 92,
+        96, 98, 102, 108,
+        116, 122, 126, 128,
+        132, 165, 172, 179,
+        186, 188, 213, 221
+    };
 
     /**
      * Triple word locations
      */
-    std::size_t _triple_word_locations[8] = {
-                                             0, 7, 14, 105,
-                                             119, 210, 217, 224
-                                            };
+    static std::size_t _triple_word_locations[TRIPLE_WORD_NUMBER_OF_LOCATIONS] = {
+        0, 7, 14, 105,
+        119, 210, 217, 224
+    };
 
     /**
      * Double word locations
      */
-    std::size_t _double_word_locations[16] = {
-                                              16, 28, 32, 42,
-                                              48, 56, 64, 70,
-                                              154, 160, 168, 176,
-                                              182, 192, 196, 208
-                                             };
+    static std::size_t _double_word_locations[DOUBLE_WORD_NUMBER_OF_LOCATIONS] = {
+        16, 28, 32, 42,
+        48, 56, 64, 70,
+        154, 160, 168, 176,
+        182, 192, 196, 208
+    };
 #endif
 
 
@@ -195,17 +193,20 @@ typedef struct Tile {
  * move, which are the coordinates of the first letter.
  */
 typedef struct Move {
-    std::string word;      // Sequence of letters for move
-    int points;            // Points for word
-    int anchorX, anchorY;  // Anchor point for the word
+    std::string word;              // Sequence of letters for move
+    int points;                    // Points for word
+    std::size_t anchorX, anchorY;  // Anchor point for the word
+    int direction;                 // Direction for the move (down or right)
 
     /**
      * Prints out the move in the given format:
-     * "word"; Location = (x, y); Points for word = points
+     * <word>; Location = (<x>, <y>); Direction = <direction>; Points for word = <points>
      */
     void print() {
-        std::cout << word << "; Location = (" << anchorX + 1 << ", " << 
-            anchorY + 1 << "); Points for word = " << points << std::endl; 
+        std::cout << "Word = " << word << "; Location = (" << anchorX << ", " << anchorY << "); ";
+        if (direction == VERTICAL) std::cout << "DOWN; ";
+        else std::cout << "RIGHT; ";
+        std::cout << "Points for word = " << points << std::endl;
     }
 } move;
 
@@ -239,21 +240,16 @@ typedef struct Board {
     }
 } board;
 
-/**
- * Retrieves the scrabble point value of the given word.
- * @param word
- *          Scrabble word
- * @return Point value of the string parameter
- */
-static std::size_t getPointValueOfWord(std::string word) {
-    std::size_t _value = 0;
-    for (std::size_t i = 0; i < word.size(); ++i) _value += _letter_values[word[i]];
-    return _value;
-}
 
 /**
  * Function prototypes
  **/
+
+/**
+ * Will be used to store all the words in the Scrabble dictionary
+ * for the purpose of constant look-up time
+ */
+std::unordered_set<std::string> initializeWordSet(); // Method to initialize this set
 
 Board createBoardFromFile(const std::string filename);
 
@@ -267,7 +263,9 @@ bool boardIsEmpty(const Board board);
 
 std::vector<std::string> getPossibleWords(std::vector<char> letters, bool four_or_more);
 
-Move& findBestWord(Board& board);
+Move findBestWord(Board& board, std::string letters);
+
+std::size_t getPointValueOfMove(Move& move);
 
 #if (METHOD == PROBABILISTIC)
 
